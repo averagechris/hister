@@ -4,6 +4,11 @@
 
 Hister is a general purpose web search engine providing automatic full-text indexing for visited websites.
 
+> This is a personal fork of [asciimoo/hister](https://github.com/asciimoo/hister)
+> (AGPLv3+), canonical at [git.sr.ht/~averagechris/hister](https://git.sr.ht/~averagechris/hister).
+> Binary downloads: <https://averagechris.srht.site/hister/>. Fork policy,
+> roadmap, and audit live in `AGENTS.md` and `docs/`.
+
 ## Features
 
 - **Privacy-focused**: Keep your browsing history indexed locally - don't use remote search engines if it isn't necessary
