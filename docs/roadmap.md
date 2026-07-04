@@ -51,7 +51,12 @@ The frozen fork-point audit is `docs/fork-audit.md`.
       on a public URL (first fork feature)
 - [ ] Deploy hister on **thorny** (data + future GPU embeddings at home);
       **Caddy on trainwreck** as public front door for
-      `hister.thesogu.com`, proxying over the tailnet (decided topology)
+      `hister.thesogu.com`, proxying over the tailnet (decided topology).
+      Config landed in `~/projects/dotfiles` (uncommitted); remaining:
+      GitHub OAuth app + client_id, agenix `thorny/hister-env.age`
+      secret, DNS A record → 49.13.143.249, deploy thorny + trainwreck
+- [x] Nightly backup on thorny: stop → tar zstd `/var/lib/hister` →
+      keep 14 (configured alongside the service); offsite/restic later
 - [x] Auth: `user_handling` + `oauth_only` with GitHub to start;
       self-hosted OIDC provider for friends/team is a future ambition
 - [ ] Extension setup per device (server URL, token, per-device `label`);
