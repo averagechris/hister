@@ -410,6 +410,7 @@ Each entry supports the following fields:
 | `token_url`         | string   | no        | Override the provider's token endpoint. Not needed for `github` or `google`. Required for `oidc` when `configuration_url` is not set.                                                                       |
 | `userinfo_url`      | string   | no        | Override the OIDC userinfo endpoint. Normally discovered from `configuration_url`. Set this when auto-discovery does not return a `userinfo_endpoint` or when configuring OIDC without `configuration_url`. |
 | `scopes`            | []string | no        | Additional OAuth scopes to request. The provider defaults are used when omitted.                                                                                                                            |
+| `allowed_users`     | []string | no        | Restrict sign-in to the listed provider usernames or email addresses (case-insensitive). When omitted or empty, any user of the provider may sign in and an account is created automatically.               |
 
 ### GitHub Example
 
@@ -421,6 +422,9 @@ server:
     github:
       client_id: 'your-github-client-id'
       client_secret: 'your-github-client-secret'
+      allowed_users:
+        - 'your-github-login'
+        - 'friend-github-login'
 ```
 
 ### Google Example

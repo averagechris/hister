@@ -33,6 +33,8 @@ Hister supports signing in via GitHub, Google, or any OpenID Connect provider wh
 
 When a user signs in via OAuth for the first time, Hister automatically creates a local account linked to their provider identity (GitHub login name, Google email, or OIDC preferred username). Subsequent logins with the same provider identity reuse the same account.
 
+To restrict who may sign in, set `allowed_users` on the provider entry (a list of provider usernames or email addresses). Users not on the list are rejected before an account is created. See the [configuration docs](/docs/configuration#oauth) for details.
+
 OAuth accounts work identically to password accounts: they have their own isolated search index, personal access token, rules, and aliases. An OAuth user can generate a personal access token from their profile page to use with the CLI or browser extension.
 
 See the [OAuth section of the configuration docs](/docs/configuration#oauth) for setup instructions.

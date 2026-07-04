@@ -27,7 +27,7 @@ The frozen fork-point audit is `docs/fork-audit.md`.
 | D4 | Conventional Commits in fork history; upstream's `[enh]`/`[fix]` style not imitated | done |
 | D5 | Version source of truth stays `webui/app/package.json`; releases tagged `vX.Y.Z` on SourceHut | done |
 | D6 | Version numbering diverges from upstream: first fork release is **v1.0.0** (upstream continues 0.x; no collision). Fork semver is driven by Conventional Commits from there | done |
-| D7 | Rust rewrite: full rewrite / API-compatible Rust server reusing upstream extension+webui / stay Go | **open** — see fork-audit assessment |
+| D7 | Stay **Go** for now. Rust remains a possible future direction via an API-compatible server spike (Tantivy + `/api/add` + search parity behind the unchanged extension); revisit after living with the deployed instance | done (revisitable) |
 
 ## Backlog
 
@@ -46,11 +46,17 @@ The frozen fork-point audit is `docs/fork-audit.md`.
 
 ### Deployment (R1/R2)
 
-- [ ] Deploy to the remote server via `nixosModules.hister`; TLS via
-      reverse proxy
-- [ ] Decide auth: `user_handling` + OAuth provider vs. shared
-      `access_token`; document friend onboarding
-- [ ] Extension setup per device (server URL, token, per-device `label`)
+- [x] OAuth sign-in allowlist (`server.oauth.<provider>.allowed_users`) —
+      upstream auto-creates an account for any provider user; unacceptable
+      on a public URL (first fork feature)
+- [ ] Deploy hister on **thorny** (data + future GPU embeddings at home);
+      **Caddy on trainwreck** as public front door for
+      `hister.thesogu.com`, proxying over the tailnet (decided topology)
+- [x] Auth: `user_handling` + `oauth_only` with GitHub to start;
+      self-hosted OIDC provider for friends/team is a future ambition
+- [ ] Extension setup per device (server URL, token, per-device `label`);
+      work laptop: indexing disabled by default + manual hotkey + skip
+      rules for work domains (data-exfiltration caution)
 - [ ] Verify multi-user semantics: per-user vs. global skip rules,
       history, and search visibility (flagged in fork-audit)
 - [ ] Audit MCP endpoint auth before exposing it on the public host

@@ -93,6 +93,27 @@ type OAuthEntry struct {
 	TokenURL         string   `yaml:"token_url"         mapstructure:"token_url"`
 	UserInfoURL      string   `yaml:"userinfo_url"      mapstructure:"userinfo_url"`
 	Scopes           []string `yaml:"scopes"            mapstructure:"scopes"`
+	// AllowedUsers restricts sign-in to the listed provider usernames or
+	// email addresses (case-insensitive). An empty list allows any user of
+	// the provider to sign in (upstream behavior).
+	AllowedUsers []string `yaml:"allowed_users"     mapstructure:"allowed_users"`
+}
+
+// UserAllowed reports whether the provider username or email is permitted to
+// sign in. An empty allowlist permits everyone.
+func (e *OAuthEntry) UserAllowed(username, email string) bool {
+	if len(e.AllowedUsers) == 0 {
+		return true
+	}
+	for _, allowed := range e.AllowedUsers {
+		if username != "" && strings.EqualFold(allowed, username) {
+			return true
+		}
+		if email != "" && strings.EqualFold(allowed, email) {
+			return true
+		}
+	}
+	return false
 }
 
 type Directory struct {

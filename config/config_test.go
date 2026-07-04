@@ -376,3 +376,57 @@ func TestWebSocketURLHonorsBasePath(t *testing.T) {
 		})
 	}
 }
+
+func TestOAuthEntryUserAllowed(t *testing.T) {
+	tests := []struct {
+		name     string
+		allowed  []string
+		username string
+		email    string
+		want     bool
+	}{
+		{name: "empty list allows anyone", allowed: nil, username: "someone", email: "", want: true},
+		{name: "username match", allowed: []string{"alice", "bob"}, username: "bob", want: true},
+		{name: "username match is case-insensitive", allowed: []string{"Alice"}, username: "alice", want: true},
+		{name: "email match", allowed: []string{"carol@example.com"}, email: "Carol@Example.com", want: true},
+		{name: "no match rejected", allowed: []string{"alice"}, username: "mallory", email: "mallory@example.com", want: false},
+		{name: "empty identity rejected by non-empty list", allowed: []string{"alice"}, want: false},
+		{name: "empty allowlist entry does not match empty identity", allowed: []string{""}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &OAuthEntry{AllowedUsers: tt.allowed}
+			if got := e.UserAllowed(tt.username, tt.email); got != tt.want {
+				t.Fatalf("UserAllowed(%q, %q)=%v, want %v", tt.username, tt.email, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOAuthAllowedUsersParsing(t *testing.T) {
+	cfg, err := parseConfig([]byte(`
+app:
+  user_handling: true
+server:
+  base_url: https://example.com
+  oauth:
+    github:
+      client_id: id
+      client_secret: secret
+      allowed_users:
+        - alice
+        - bob@example.com
+`))
+	if err != nil {
+		t.Fatalf("parseConfig() error = %v", err)
+	}
+	entry := cfg.Server.OAuth["github"]
+	if entry == nil {
+		t.Fatal("github oauth entry missing")
+	}
+	want := []string{"alice", "bob@example.com"}
+	if len(entry.AllowedUsers) != len(want) || entry.AllowedUsers[0] != want[0] || entry.AllowedUsers[1] != want[1] {
+		t.Fatalf("AllowedUsers = %v, want %v", entry.AllowedUsers, want)
+	}
+}

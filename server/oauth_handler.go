@@ -137,6 +137,14 @@ func serveOAuthCallback(c *webContext) {
 		serve500(c)
 		return
 	}
+	if !entry.UserAllowed(userInfo.Username, userInfo.Email) {
+		log.Warn().
+			Str("provider", providerName).
+			Str("username", userInfo.Username).
+			Msg("oauth: sign-in rejected: user not in allowed_users")
+		http.Error(c.Response, "account not permitted on this instance", http.StatusForbidden)
+		return
+	}
 	user, err := model.GetUserByOAuthID(userInfo.UID)
 	if err != nil {
 		username := userInfo.Username
