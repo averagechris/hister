@@ -55,7 +55,8 @@ jj tag list --no-pager --color=never
 
 Use the latest fork `vX.Y.Z` tag as the baseline. (Upstream tags such as
 `rolling` and pre-fork `vX.Y.Z` tags are not fork release baselines —
-the first fork release baseline is the fork point, v0.16.0.)
+the first fork release is **v1.0.0**, cut from the fork point at
+upstream v0.16.0; see roadmap decision D6.)
 
 ## 2. Review commits since that tag
 

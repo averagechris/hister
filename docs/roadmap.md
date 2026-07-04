@@ -26,7 +26,7 @@ The frozen fork-point audit is `docs/fork-audit.md`.
 | D3 | Keep the `hister` name (no rebrand) | done |
 | D4 | Conventional Commits in fork history; upstream's `[enh]`/`[fix]` style not imitated | done |
 | D5 | Version source of truth stays `webui/app/package.json`; releases tagged `vX.Y.Z` on SourceHut | done |
-| D6 | Version numbering scheme post-fork (continue upstream's line vs. diverge — upstream will also mint 0.17.x) | **open** |
+| D6 | Version numbering diverges from upstream: first fork release is **v1.0.0** (upstream continues 0.x; no collision). Fork semver is driven by Conventional Commits from there | done |
 | D7 | Rust rewrite: full rewrite / API-compatible Rust server reusing upstream extension+webui / stay Go | **open** — see fork-audit assessment |
 
 ## Backlog
@@ -41,7 +41,7 @@ The frozen fork-point audit is `docs/fork-audit.md`.
       `release-tag`, `build-pages`, `publish-pages`, `release`),
       `release-artifact`, checks, `.jj-lint.toml`
 - [ ] `builds/release-linux-x86_64.yml` (explicit-submit SourceHut build)
-- [ ] First fork release + downloads page at
+- [ ] First fork release (**v1.0.0**, per D6) + downloads page at
       `https://averagechris.srht.site/hister/`
 
 ### Deployment (R1/R2)
