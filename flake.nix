@@ -54,13 +54,16 @@
               touch server/static/app/.placeholder
             fi
           '';
-          ciFmtScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
+          repoRootScript = ''
+            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
             cd "$repo_root"
+          '';
+          ciFmtScript = ''
+            ${repoRootScript}
 
             # Upstream Go code is gofmt-clean (verified at the fork point);
             # keep the whole tree that way.
-            mapfile -t go_files < <(git ls-files '*.go')
+            mapfile -t go_files < <(jj file list '*.go' 2>/dev/null || git ls-files '*.go')
             unformatted="$(gofmt -l "''${go_files[@]}")"
             if [[ -n "$unformatted" ]]; then
               printf 'gofmt check failed:\n%s\n' "$unformatted" >&2
@@ -72,14 +75,16 @@
             nixfmt --check flake.nix
           '';
           ciVetScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
-            cd "$repo_root"
+            ${repoRootScript}
             ${ensureEmbedPlaceholder}
             go vet ./...
           '';
+          staticChecksScript = ''
+            ${ciFmtScript}
+            ${ciVetScript}
+          '';
           ciTestScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
-            cd "$repo_root"
+            ${repoRootScript}
             ${ensureEmbedPlaceholder}
             # The full suite is offline-friendly: ytdlp tests use fake yt-dlp
             # binaries and httptest servers, wikipedia tests use local
@@ -921,6 +926,7 @@
             runtimeInputs = with pkgs; [
               git
               go
+              jujutsu
               nixfmt-rfc-style
             ];
           };
@@ -930,6 +936,17 @@
             runtimeInputs = with pkgs; [
               git
               go
+              jujutsu
+            ];
+          };
+          static-checks = mkRepoScript {
+            name = "static-checks";
+            text = staticChecksScript;
+            runtimeInputs = with pkgs; [
+              git
+              go
+              jujutsu
+              nixfmt-rfc-style
             ];
           };
           ci-test = mkRepoScript {
@@ -938,6 +955,7 @@
             runtimeInputs = with pkgs; [
               git
               go
+              jujutsu
             ];
           };
           prepare-release = mkRepoScript {
@@ -1001,6 +1019,7 @@
               publish-pages
               release
               release-tag
+              static-checks
             ];
           };
           releaseArtifactPlatform =
@@ -1070,6 +1089,7 @@
               publish-pages
               release
               release-tag
+              static-checks
               ;
             scripts = repo-scripts;
           }
@@ -1089,6 +1109,7 @@
             publish-pages.program = publish-pages;
             release.program = release;
             release-tag.program = release-tag;
+            static-checks.program = static-checks;
           };
 
           checks = {
