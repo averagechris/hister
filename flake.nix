@@ -918,6 +918,14 @@
             pkgs.writeShellApplication {
               inherit name runtimeInputs text;
             };
+          cgoCheckInputs = lib.optionals pkgs.stdenv.isLinux (
+            with pkgs;
+            [
+              pkg-config
+              sqlite
+              stdenv.cc
+            ]
+          );
           fetch-upstream = mkRepoScript {
             name = "fetch-upstream";
             text = fetchUpstreamScript;
@@ -936,30 +944,36 @@
           ci-vet = mkRepoScript {
             name = "ci-vet";
             text = ciVetScript;
-            runtimeInputs = with pkgs; [
-              git
-              go
-              jujutsu
-            ];
+            runtimeInputs =
+              (with pkgs; [
+                git
+                go
+                jujutsu
+              ])
+              ++ cgoCheckInputs;
           };
           static-checks = mkRepoScript {
             name = "static-checks";
             text = staticChecksScript;
-            runtimeInputs = with pkgs; [
-              git
-              go
-              jujutsu
-              nixfmt-rfc-style
-            ];
+            runtimeInputs =
+              (with pkgs; [
+                git
+                go
+                jujutsu
+                nixfmt-rfc-style
+              ])
+              ++ cgoCheckInputs;
           };
           ci-test = mkRepoScript {
             name = "ci-test";
             text = ciTestScript;
-            runtimeInputs = with pkgs; [
-              git
-              go
-              jujutsu
-            ];
+            runtimeInputs =
+              (with pkgs; [
+                git
+                go
+                jujutsu
+              ])
+              ++ cgoCheckInputs;
           };
           prepare-release = mkRepoScript {
             name = "prepare-release";
