@@ -316,7 +316,7 @@
               esac
             done
 
-            repo_root="$(git rev-parse --show-toplevel)"
+            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
 
             version="$(${pkgs.python3}/bin/python3 -c '
             import json, pathlib, sys
@@ -782,7 +782,7 @@
             exec hut pages publish "$pages_tarball" --domain "$domain" --subdirectory "$subdirectory"
           '';
           releaseScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
+            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
             cd "$repo_root"
 
             version=""
@@ -811,8 +811,8 @@
               --skip-tag                 do not create/push the release tag
               --skip-artifact            do not build/copy the local release artifact
               --skip-pages               do not build the static downloads page
-              --publish-pages            publish dist/pages/hister-pages.tar.gz with hut
-              --submit-linux-build       submit builds/release-linux-x86_64.yml with hut
+              --publish-pages            publish dist/pages/hister-pages.tar.gz with hut (legacy)
+              --submit-linux-build       submit builds/release-linux-x86_64.yml with srht
               --domain DOMAIN            SourceHut Pages domain (default: averagechris.srht.site)
               --subdirectory PATH        SourceHut Pages subdirectory (default: /hister)
               -h, --help                 show this help
@@ -900,9 +900,12 @@
             fi
 
             if [[ $submit_linux_build -eq 1 ]]; then
-              hut builds submit "$linux_manifest" --note "hister $tag linux release" --tags "hister/$tag/release" --visibility unlisted
+              srht() { nix run 'git+https://git.sr.ht/~averagechris/srht' -- "$@"; }
+              # The release manifest has oauth grants, and sr.ht only provisions
+              # its bearer token when the submitting client enables secrets.
+              srht builds submit "$linux_manifest" --secrets --note "hister $tag linux release" --tag "hister/$tag/release"
             else
-              printf 'linux build not submitted; run: hut builds submit %s --note %q --tags %q --visibility unlisted\n' \
+              printf 'linux build not submitted; run: srht builds submit %s --secrets --note %q --tag %q\n' \
                 "$linux_manifest" "hister $tag linux release" "hister/$tag/release"
             fi
           '';
@@ -1000,7 +1003,6 @@
               coreutils
               git
               go
-              hut
               jujutsu
               nix
               prepare-release

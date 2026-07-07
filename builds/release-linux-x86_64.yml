@@ -21,7 +21,8 @@ tasks:
   - upload-and-refresh: |
       set -eu
       cd hister
-      hut() { nix shell --inputs-from . nixpkgs#hut --command hut "$@"; }
+      export SRHT_TOKEN="${SRHT_TOKEN:-$(awk -F ' *= *' '$1 == "oauth-token" { gsub(/\"/, "", $2); print $2; exit }' ~/.config/hut/config)}"
+      srht() { nix run 'git+https://git.sr.ht/~averagechris/srht' -- "$@"; }
       version="$(awk '
         /"version"[[:space:]]*:/ {
           line = $0
@@ -38,7 +39,8 @@ tasks:
       set -- result-release-artifact/*.tar.gz
       [ -e "$1" ] || { printf '%s\n' 'no release artifacts found' >&2; exit 1; }
       for artifact do
-        hut git artifact upload -r hister --rev "$tag" "$artifact" "$artifact.sha256"
+        srht git artifact upload -r hister --rev "$tag" "$artifact"
+        srht git artifact upload -r hister --rev "$tag" "$artifact.sha256"
       done
 
       manifest="$(mktemp)"
@@ -65,7 +67,9 @@ tasks:
             cd averagechris.srht.site
             nix run .#refresh-pages
       EOF
-      hut builds submit "$manifest" --note "site refresh: hister $tag" --visibility unlisted
+      # The refresh manifest has oauth grants, and sr.ht only provisions its
+      # bearer token when the submitting client enables secrets.
+      srht builds submit "$manifest" --secrets --note "site refresh: hister $tag"
 artifacts:
   - artifacts/hister-v0.16.0-x86_64-linux.tar.gz
   - artifacts/hister-v0.16.0-x86_64-linux.tar.gz.sha256
