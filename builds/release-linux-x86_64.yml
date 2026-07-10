@@ -12,7 +12,7 @@ environment:
 sources:
   - https://git.sr.ht/~averagechris/hister
 secrets:
-  - 731f7e55-4497-4228-8fa4-1657da7d3625 # cachix averagechris-dotfiles -> ~/.ci_secrets/cachix_token
+  - 5ec60320-e0d8-4ebe-8b45-1d10cc4d2cb2 # cachix averagechris-dotfiles -> ~/.ci_secrets/cachix_token
 tasks:
   - release-artifact: |
       set -eu
@@ -28,8 +28,10 @@ tasks:
         exit 0
       fi
       nix build .#default --out-link result-pkg
+      set +x
       CACHIX_AUTH_TOKEN="$(cat ~/.ci_secrets/cachix_token)"
       export CACHIX_AUTH_TOKEN
+      set -x
       # Push the artifact closure but only the top-level hister path: the
       # yt-dlp PATH wrapper drags a ~1.9GB python closure that is already
       # substitutable from cache.nixos.org.
@@ -38,7 +40,9 @@ tasks:
   - upload-and-refresh: |
       set -eu
       cd hister
+      set +x
       export SRHT_TOKEN="${SRHT_TOKEN:-${OAUTH2_TOKEN:-$(awk '/access-token/ { gsub(/"/, "", $2); print $2; exit }' ~/.config/hut/config 2>/dev/null || true)}}"
+      set -x
       srht() { nix run 'git+https://git.sr.ht/~averagechris/srht' -- "$@"; }
       version="$(awk '
         /"version"[[:space:]]*:/ {

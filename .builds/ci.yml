@@ -8,7 +8,7 @@ environment:
 sources:
   - https://git.sr.ht/~averagechris/hister
 secrets:
-  - 731f7e55-4497-4228-8fa4-1657da7d3625 # cachix averagechris-dotfiles -> ~/.ci_secrets/cachix_token
+  - 5ec60320-e0d8-4ebe-8b45-1d10cc4d2cb2 # cachix averagechris-dotfiles -> ~/.ci_secrets/cachix_token
 tasks:
   - static-checks: cd hister && nix run .#static-checks
   - test: cd hister && nix run .#ci-test
@@ -23,8 +23,10 @@ tasks:
         echo "no cachix token available; skipping cache warm"
         exit 0
       fi
+      set +x
       CACHIX_AUTH_TOKEN="$(cat ~/.ci_secrets/cachix_token)"
       export CACHIX_AUTH_TOKEN
+      set -x
       # Push only the hister output path, not the runtime closure: the
       # yt-dlp PATH wrapper drags a ~1.9GB python closure that is already
       # substitutable from cache.nixos.org.
