@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+    fleet.url = "git+https://git.sr.ht/~averagechris/averagechris.srht.site";
   };
 
   outputs =
@@ -900,7 +901,7 @@
             fi
 
             if [[ $submit_linux_build -eq 1 ]]; then
-              srht() { nix run 'git+https://git.sr.ht/~averagechris/srht' -- "$@"; }
+              srht() { nix run --inputs-from . fleet#srht -- "$@"; }
               # The release manifest has oauth grants, and sr.ht only provisions
               # its bearer token when the submitting client enables secrets.
               srht builds submit "$linux_manifest" --secrets --note "hister $tag linux release" --tag "hister/$tag/release"
