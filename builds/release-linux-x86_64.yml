@@ -92,5 +92,5 @@ tasks:
       # bearer token when the submitting client enables secrets.
       srht builds submit "$manifest" --secrets --note "site refresh: hister $tag"
 artifacts:
-  - artifacts/hister-v0.16.0-x86_64-linux.tar.gz
-  - artifacts/hister-v0.16.0-x86_64-linux.tar.gz.sha256
+  - artifacts/hister-v1.0.0-x86_64-linux.tar.gz
+  - artifacts/hister-v1.0.0-x86_64-linux.tar.gz.sha256

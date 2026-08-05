@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+## v1.0.0 - 2026-08-05
+
+### Changed
+
+- Refresh Go, npm workspace, and Nix dependencies to current compatible stable versions.
+- Reformat frontend and documentation sources for the updated Prettier toolchain.
+
 ## v0.16.0
 
 ### New Features
