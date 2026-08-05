@@ -436,7 +436,7 @@
   )}
     <Table.Head class={headClass}>
       <button
-        class="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-[inherit] tracking-[inherit] uppercase hover:opacity-100 opacity-80"
+        class="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] tracking-[inherit] text-[inherit] uppercase opacity-80 hover:opacity-100"
         onclick={onToggle}
       >
         {label}

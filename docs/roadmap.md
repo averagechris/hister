@@ -19,15 +19,15 @@ The frozen fork-point audit is `docs/fork-audit.md`.
 
 ## Decisions
 
-| # | Decision | Status |
-| --- | --- | --- |
-| D1 | SourceHut (`~averagechris/hister`) is canonical; GitHub is read-only `upstream` | done |
-| D2 | No hosted CI on push; local `nix flake check` + `.jj-lint.toml`; SourceHut builds are release-only, submitted explicitly from `builds/` | done |
-| D3 | Keep the `hister` name (no rebrand) | done |
-| D4 | Conventional Commits in fork history; upstream's `[enh]`/`[fix]` style not imitated | done |
-| D5 | Version source of truth stays `webui/app/package.json`; releases tagged `vX.Y.Z` on SourceHut | done |
-| D6 | Version numbering diverges from upstream: first fork release is **v1.0.0** (upstream continues 0.x; no collision). Fork semver is driven by Conventional Commits from there | done |
-| D7 | Stay **Go** for now. Rust remains a possible future direction via an API-compatible server spike (Tantivy + `/api/add` + search parity behind the unchanged extension); revisit after living with the deployed instance | done (revisitable) |
+| #   | Decision                                                                                                                                                                                                                | Status             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| D1  | SourceHut (`~averagechris/hister`) is canonical; GitHub is read-only `upstream`                                                                                                                                         | done               |
+| D2  | No hosted CI on push; local `nix flake check` + `.jj-lint.toml`; SourceHut builds are release-only, submitted explicitly from `builds/`                                                                                 | done               |
+| D3  | Keep the `hister` name (no rebrand)                                                                                                                                                                                     | done               |
+| D4  | Conventional Commits in fork history; upstream's `[enh]`/`[fix]` style not imitated                                                                                                                                     | done               |
+| D5  | Version source of truth stays `webui/app/package.json`; releases tagged `vX.Y.Z` on SourceHut                                                                                                                           | done               |
+| D6  | Version numbering diverges from upstream: first fork release is **v1.0.0** (upstream continues 0.x; no collision). Fork semver is driven by Conventional Commits from there                                             | done               |
+| D7  | Stay **Go** for now. Rust remains a possible future direction via an API-compatible server spike (Tantivy + `/api/add` + search parity behind the unchanged extension); revisit after living with the deployed instance | done (revisitable) |
 
 ## Backlog
 

@@ -96,7 +96,7 @@
           <div class="flex w-full flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div class="flex min-w-0 items-start gap-3">
               <span
-                class="bg-hister-coral/10 flex size-10 shrink-0 items-center justify-center border border-border-brand-muted"
+                class="bg-hister-coral/10 border-border-brand-muted flex size-10 shrink-0 items-center justify-center border"
               >
                 <Database class="text-hister-coral size-5" />
               </span>
@@ -126,7 +126,7 @@
                 type="submit"
                 form="add-entry-form"
                 disabled={!canSubmit}
-                class="bg-hister-coral font-outfit text-primary-foreground brutal-press border-brutal-border h-10 shrink-0 gap-2 border-[3px] px-5 text-sm font-extrabold uppercase hover:bg-hister-coral/90 disabled:opacity-50"
+                class="bg-hister-coral font-outfit text-primary-foreground brutal-press border-brutal-border hover:bg-hister-coral/90 h-10 shrink-0 gap-2 border-[3px] px-5 text-sm font-extrabold uppercase disabled:opacity-50"
               >
                 {#if submitting}
                   <LoaderCircle class="size-4 shrink-0 animate-spin" />

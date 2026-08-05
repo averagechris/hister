@@ -1702,7 +1702,7 @@
                             Filters
                             {#if activeFilterCount > 0}
                               <span
-                                class="bg-hister-indigo text-background flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                                class="bg-hister-indigo text-background flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold"
                                 >{activeFilterCount}</span
                               >
                             {/if}
@@ -2027,7 +2027,7 @@
                           Sort
                           {#if currentSort}
                             <span
-                              class="bg-hister-indigo text-background flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                              class="bg-hister-indigo text-background flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold"
                               >1</span
                             >
                           {/if}
@@ -2169,10 +2169,10 @@
                         />
                       </div>
                       <div
-                        class="result-meta flex min-w-0 max-w-full items-center gap-x-3 gap-y-1 overflow-hidden"
+                        class="result-meta flex max-w-full min-w-0 items-center gap-x-3 gap-y-1 overflow-hidden"
                       >
                         <div
-                          class="result-url-line flex min-w-0 max-w-full shrink items-center gap-1.5"
+                          class="result-url-line flex max-w-full min-w-0 shrink items-center gap-1.5"
                         >
                           {#if r.add_count && r.add_count > 1}
                             <span
@@ -2183,7 +2183,7 @@
                             </span>
                           {/if}
                           <span
-                            class="result-url-text min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs md:text-sm"
+                            class="result-url-text min-w-0 overflow-hidden text-xs text-ellipsis whitespace-nowrap md:text-sm"
                             title={r.url}
                           >
                             {#if r.domain}<span class="result-domain font-inter font-semibold"
@@ -2208,7 +2208,7 @@
                             }}
                           >
                             {#if copiedUrl === r.url}
-                              <Check class="size-3 text-hister-teal" />
+                              <Check class="text-hister-teal size-3" />
                             {:else}
                               <Copy class="size-3" />
                             {/if}

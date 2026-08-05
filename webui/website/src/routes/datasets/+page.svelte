@@ -138,7 +138,7 @@
   />
 </svelte:head>
 
-<div class="mx-auto md:mx-0 max-w-screen-l px-6 py-12 md:px-12">
+<div class="max-w-screen-l mx-auto px-6 py-12 md:mx-0 md:px-12">
   <!-- Page header -->
   <div class="mb-10">
     <h1
@@ -162,7 +162,7 @@
       <!-- Mobile toggle -->
       <button
         onclick={() => (mobileFiltersOpen = !mobileFiltersOpen)}
-        class="font-space border-brutal-border mb-4 flex w-full cursor-pointer items-center justify-between border-[3px] bg-brutal-card px-4 py-3 text-[12px] font-bold tracking-[1.5px] text-(--text-primary) uppercase lg:hidden"
+        class="font-space border-brutal-border bg-brutal-card mb-4 flex w-full cursor-pointer items-center justify-between border-[3px] px-4 py-3 text-[12px] font-bold tracking-[1.5px] text-(--text-primary) uppercase lg:hidden"
       >
         <span class="flex items-center gap-2">
           <SlidersHorizontal size={14} />
@@ -183,7 +183,7 @@
 
       <!-- Filter panel -->
       <div
-        class="border-brutal-border flex flex-col gap-6 border-[3px] bg-brutal-card p-5 lg:sticky lg:top-6 {mobileFiltersOpen
+        class="border-brutal-border bg-brutal-card flex flex-col gap-6 border-[3px] p-5 lg:sticky lg:top-6 {mobileFiltersOpen
           ? 'block'
           : 'hidden lg:flex'}"
       >
@@ -314,7 +314,7 @@
         {#if hasFilters}
           <button
             onclick={clearFilters}
-            class="font-space flex cursor-pointer items-center justify-center gap-1.5 border-[2px] border-brutal-border px-3 py-2 text-[11px] font-semibold tracking-[0.5px] text-(--text-secondary) uppercase transition-colors hover:border-(--text-primary) hover:text-(--text-primary)"
+            class="font-space border-brutal-border flex cursor-pointer items-center justify-center gap-1.5 border-[2px] px-3 py-2 text-[11px] font-semibold tracking-[0.5px] text-(--text-secondary) uppercase transition-colors hover:border-(--text-primary) hover:text-(--text-primary)"
           >
             <X size={12} />
             Clear all filters
@@ -336,11 +336,11 @@
       <!-- Cards grid -->
       {#if filtered.length > 0}
         <ul
-          class="m-0 grid list-none gap-6 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr))]"
+          class="m-0 grid list-none [grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr))] gap-6 p-0"
         >
           {#each filtered as dataset (dataset.slug)}
             <li
-              class="border-brutal-border brutal-press-card flex flex-col border-[3px] bg-brutal-card"
+              class="border-brutal-border brutal-press-card bg-brutal-card flex flex-col border-[3px]"
             >
               {#if dataset.image}
                 <div class="border-brutal-border overflow-hidden border-b-[3px]">
@@ -350,7 +350,7 @@
 
               <div class="flex flex-1 flex-col gap-3 p-6">
                 <h2
-                  class="font-space text-lg font-extrabold leading-tight tracking-[0.5px] text-(--text-primary)"
+                  class="font-space text-lg leading-tight font-extrabold tracking-[0.5px] text-(--text-primary)"
                 >
                   {dataset.name}
                 </h2>
@@ -425,14 +425,14 @@
         </ul>
       {:else}
         <div
-          class="border-brutal-border flex flex-col items-center gap-4 border-[3px] bg-brutal-card px-6 py-16 text-center"
+          class="border-brutal-border bg-brutal-card flex flex-col items-center gap-4 border-[3px] px-6 py-16 text-center"
         >
           <p class="font-space text-lg font-bold text-(--text-secondary) uppercase">
             No datasets match your filters.
           </p>
           <button
             onclick={clearFilters}
-            class="font-space cursor-pointer border-[2px] border-brutal-border px-5 py-2 text-[12px] font-semibold tracking-[1px] text-(--text-primary) uppercase transition-colors hover:bg-(--text-primary) hover:text-white"
+            class="font-space border-brutal-border cursor-pointer border-[2px] px-5 py-2 text-[12px] font-semibold tracking-[1px] text-(--text-primary) uppercase transition-colors hover:bg-(--text-primary) hover:text-white"
           >
             Clear filters
           </button>
@@ -463,7 +463,7 @@
       aria-modal="true"
       aria-labelledby="submit-modal-title"
       tabindex="-1"
-      class="border-brutal-border relative my-auto w-full max-w-2xl border-[3px] bg-brutal-card shadow-[8px_8px_0_var(--brutal-border)]"
+      class="border-brutal-border bg-brutal-card relative my-auto w-full max-w-2xl border-[3px] shadow-[8px_8px_0_var(--brutal-border)]"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
@@ -490,7 +490,7 @@
           href="https://github.com/asciimoo/hister"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-space border-brutal-border brutal-press flex w-full self-start justify-center items-center gap-2 border-[2px] bg-(--hister-indigo) px-5 py-2.5 text-[12px] font-bold tracking-[1px] text-white uppercase no-underline"
+          class="font-space border-brutal-border brutal-press flex w-full items-center justify-center gap-2 self-start border-[2px] bg-(--hister-indigo) px-5 py-2.5 text-[12px] font-bold tracking-[1px] text-white uppercase no-underline"
         >
           <GitPullRequest size={14} class="shrink-0" />
           Open a Pull Request
@@ -522,11 +522,11 @@
         <dl class="font-inter grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
           {#each [['name', 'Display name of the dataset (string, required)'], ['description', 'Short description of the dataset contents (string, required)'], ['downloadUrl', 'Direct URL to the Hister dataset JSON file (string, required)'], ['image', 'Optional cover image URL, or null (string | null)'], ['tags', 'List of topic tags (string[], required)'], ['license', 'License identifier, e.g. "CC-BY 4.0" (string, required)'], ['author', 'Name of the dataset author or publisher (string, required)'], ['diskSizeBytes', 'File size of the download in bytes (number, required)'], ['documentCount', 'Number of documents in the dataset (number, required)'], ['latestUpdate', 'Date the dataset was last updated, YYYY-MM-DD (string, required)']] as [field, desc]}
             <dt
-              class="font-space font-semibold tracking-[0.5px] text-(--text-primary) whitespace-nowrap"
+              class="font-space font-semibold tracking-[0.5px] whitespace-nowrap text-(--text-primary)"
             >
               {field}
             </dt>
-            <dd class="text-(--text-secondary) m-0">{desc}</dd>
+            <dd class="m-0 text-(--text-secondary)">{desc}</dd>
           {/each}
         </dl>
       </div>

@@ -586,7 +586,7 @@
             variant="ghost"
             class="flex h-auto w-full cursor-pointer items-center justify-start gap-2 rounded-none border-[2px] px-3 py-2 shadow-[2px_2px_0_transparent] hover:shadow-[2px_2px_0_var(--brutal-shadow)] {!filterByDate
               ? 'border-brutal-border bg-hister-indigo text-primary-foreground hover:bg-hister-indigo/90 hover:text-primary-foreground'
-              : 'border-transparent hover:border-border-brand hover:bg-muted-surface'}"
+              : 'hover:border-border-brand hover:bg-muted-surface border-transparent'}"
             onclick={showAll}
           >
             <span
@@ -606,7 +606,7 @@
               variant="ghost"
               class="flex h-auto w-full cursor-pointer items-center justify-start gap-2 rounded-none border-[2px] px-3 py-2 shadow-[2px_2px_0_transparent] hover:shadow-[2px_2px_0_var(--brutal-shadow)] {isActive
                 ? 'border-brutal-border text-primary-foreground hover:text-primary-foreground'
-                : 'border-transparent hover:border-border-brand hover:bg-muted-surface'}"
+                : 'hover:border-border-brand hover:bg-muted-surface border-transparent'}"
               style={isActive ? `background-color: ${getColorVar(color)};` : ''}
               onclick={() => scrollToGroup(group.key)}
             >
@@ -627,7 +627,7 @@
               <Badge
                 variant="secondary"
                 class="ml-auto h-4 shrink-0 border-0 px-1.5 py-0 text-xs {isActive
-                  ? 'bg-white/20 text-primary-foreground'
+                  ? 'text-primary-foreground bg-white/20'
                   : 'bg-muted-surface text-text-brand-muted'}"
               >
                 {groupCountLabel(group)}
@@ -639,7 +639,7 @@
             <Separator class="bg-border-brand-muted h-[2px]" />
             <Button
               variant="ghost"
-              class="font-inter border-brutal-border flex h-auto w-full cursor-pointer items-center justify-center rounded-none border-[2px] px-3 py-2 text-sm font-semibold text-text-brand-secondary shadow-[2px_2px_0_transparent] hover:bg-muted-surface hover:shadow-[2px_2px_0_var(--brutal-shadow)]"
+              class="font-inter border-brutal-border text-text-brand-secondary hover:bg-muted-surface flex h-auto w-full cursor-pointer items-center justify-center rounded-none border-[2px] px-3 py-2 text-sm font-semibold shadow-[2px_2px_0_transparent] hover:shadow-[2px_2px_0_var(--brutal-shadow)]"
               disabled={loading}
               onclick={loadMore}
             >
@@ -687,7 +687,7 @@
           <Button
             variant="ghost"
             size="sm"
-            class="font-inter border-brutal-border mt-2 h-8 w-full rounded-none border-[2px] px-3 text-xs font-semibold text-text-brand-secondary hover:bg-muted-surface"
+            class="font-inter border-brutal-border text-text-brand-secondary hover:bg-muted-surface mt-2 h-8 w-full rounded-none border-[2px] px-3 text-xs font-semibold"
             disabled={loading}
             onclick={loadMore}
           >

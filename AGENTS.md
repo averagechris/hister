@@ -42,14 +42,14 @@ Standing exclusions (do not port from upstream without explicit discussion):
 
 ## Failure modes
 
-| Do not | Because |
-| --- | --- |
-| Push to `upstream` | Read-only reference remote |
-| Create/track a local `master` bookmark | Fork trunk is `main` |
-| Blind-merge or blanket-rebase onto `master@upstream` | Supply-chain review is mandatory |
-| Reintroduce GitHub Actions or hosted CI on push | Validation is local (`nix flake check`, `.jj-lint.toml`); SourceHut builds are release-only and submitted explicitly |
-| Move the build manifest to `.builds/` | That path auto-submits on every push; it lives in `builds/` on purpose |
-| Edit `docs/fork-audit.md` | Frozen record of the fork-point audit |
+| Do not                                               | Because                                                                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Push to `upstream`                                   | Read-only reference remote                                                                                           |
+| Create/track a local `master` bookmark               | Fork trunk is `main`                                                                                                 |
+| Blind-merge or blanket-rebase onto `master@upstream` | Supply-chain review is mandatory                                                                                     |
+| Reintroduce GitHub Actions or hosted CI on push      | Validation is local (`nix flake check`, `.jj-lint.toml`); SourceHut builds are release-only and submitted explicitly |
+| Move the build manifest to `.builds/`                | That path auto-submits on every push; it lives in `builds/` on purpose                                               |
+| Edit `docs/fork-audit.md`                            | Frozen record of the fork-point audit                                                                                |
 
 ## Conventions
 
