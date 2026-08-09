@@ -16,3 +16,5 @@ tmp/
 .test/
 .pre-commit-config.yaml
 result*
+__pycache__/
+*.pyc

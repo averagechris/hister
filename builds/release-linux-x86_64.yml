@@ -1,6 +1,6 @@
 image: nixos/unstable
 arch: x86_64
-oauth: git.sr.ht/OBJECTS:RW git.sr.ht/REPOSITORIES:RO git.sr.ht/PROFILE:RO builds.sr.ht/JOBS:RW builds.sr.ht/SECRETS:RO meta.sr.ht/PROFILE:RO
+oauth: git.sr.ht/OBJECTS:RW git.sr.ht/REPOSITORIES:RO git.sr.ht/PROFILE:RO builds.sr.ht/JOBS:RW builds.sr.ht/PROFILE:RO builds.sr.ht/SECRETS:RO meta.sr.ht/PROFILE:RO
 environment:
   GIT_CONFIG_COUNT: '1'
   GIT_CONFIG_KEY_0: http.userAgent
@@ -10,7 +10,7 @@ environment:
     extra-substituters = https://averagechris-dotfiles.cachix.org
     extra-trusted-public-keys = averagechris-dotfiles.cachix.org-1:VwJkl5dG1+xGDY5x884mH/kVwwpgwBAdBKIF3BZiia4=
 sources:
-  - https://git.sr.ht/~averagechris/hister
+  - https://git.sr.ht/~averagechris/hister#v1.0.0
 secrets:
   - 5ec60320-e0d8-4ebe-8b45-1d10cc4d2cb2 # cachix averagechris-dotfiles -> ~/.ci_secrets/cachix_token
 tasks:
@@ -56,12 +56,28 @@ tasks:
       [ -n "$version" ] || { printf '%s\n' 'could not read version from webui/app/package.json' >&2; exit 1; }
       tag="v${version#v}"
       commit="$(git rev-parse HEAD)"
+      [ "$(git cat-file -t "refs/tags/$tag" 2>/dev/null || true)" = tag ] || {
+        printf 'source checkout is missing annotated release tag %s\n' "$tag" >&2
+        exit 1
+      }
+      [ "$(git rev-parse "refs/tags/$tag^{}")" = "$commit" ] || {
+        printf 'source checkout HEAD does not match %s\n' "$tag" >&2
+        exit 1
+      }
 
       set -- result-release-artifact/*.tar.gz
       [ -e "$1" ] || { printf '%s\n' 'no release artifacts found' >&2; exit 1; }
       for artifact do
-        srht git artifact upload -r hister --rev "$tag" "$artifact"
-        srht git artifact upload -r hister --rev "$tag" "$artifact.sha256"
+        (cd "$(dirname "$artifact")" && sha256sum -c "$(basename "$artifact").sha256")
+        for upload in "$artifact" "$artifact.sha256"; do
+          listing="$(srht --json git artifact list -r hister --rev "$tag")"
+          if ARTIFACTS="$listing" NAME="$(basename "$upload")" nix run --inputs-from . nixpkgs#python3 -- -c \
+            'import json,os,sys; names=[x["filename"] for x in json.loads(os.environ["ARTIFACTS"])["items"]]; sys.exit(0 if os.environ["NAME"] in names else 1)'; then
+            printf 'artifact already uploaded: %s\n' "$(basename "$upload")"
+          else
+            srht git artifact upload -r hister --rev "$tag" "$upload"
+          fi
+        done
       done
 
       manifest="$(mktemp)"
@@ -90,7 +106,14 @@ tasks:
       EOF
       # The refresh manifest has oauth grants, and sr.ht only provisions its
       # bearer token when the submitting client enables secrets.
-      srht builds submit "$manifest" --secrets --note "site refresh: hister $tag"
+      build_tag="hister/$tag/refresh"
+      jobs="$(srht --json builds list --all --tag "$build_tag")"
+      if JOBS="$jobs" nix run --inputs-from . nixpkgs#python3 -- -c \
+        'import json,os,sys; failed={"failed","cancelled"}; statuses=[str(x["status"]).lower() for x in json.loads(os.environ["JOBS"])["items"]]; sys.exit(0 if any(x not in failed for x in statuses) else 1)'; then
+        printf 'refresh already active or successful: %s\n' "$build_tag"
+      else
+        srht builds submit "$manifest" --secrets --note "site refresh: hister $tag" --tag "$build_tag"
+      fi
 artifacts:
   - artifacts/hister-v1.0.0-x86_64-linux.tar.gz
   - artifacts/hister-v1.0.0-x86_64-linux.tar.gz.sha256

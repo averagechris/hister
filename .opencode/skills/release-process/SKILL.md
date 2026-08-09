@@ -1,157 +1,61 @@
 ---
 name: release-process
-description: Review commits since the last SourceHut tag, choose the next semver version from Conventional Commit messages, update changelog/download pages, build artifacts, and publish a release tag for this fork.
-allowed-tools: Bash, Read, Grep, Edit, Write
+description: Check and run Hister's Tiny-safe custom SourceHut release orchestration.
+allowed-tools: Bash, Read, Grep
 ---
 
 # Release Process
 
-Use this skill when cutting a new release for this fork of hister.
+The version source of truth is `webui/app/package.json`. Releases are Nix-built
+and published to SourceHut. Do not hand-compose routine releases from the
+lower-level `prepare-release`, `release-tag`, `build-pages`, or `publish-pages`
+apps.
 
-The version source of truth is `webui/app/package.json` (read by
-`nix/package.nix`). `prepare-release` bumps it, syncs the root
-`package-lock.json`, updates `CHANGELOG.md`, and rewrites artifact names
-in `builds/release-linux-x86_64.yml`.
+## Routine interface
 
-## Fast path
+Choose `X.Y.Z` from Conventional Commits since the previous fork release, then
+run the non-mutating readiness check:
 
-For the normal deterministic release flow, create/use the jj release
-change and run:
+```bash
+nix run .#release -- --version X.Y.Z --check
+```
+
+Only after it succeeds, run:
 
 ```bash
 nix run .#release -- --version X.Y.Z
-```
-
-This prepares version metadata and `CHANGELOG.md`, runs validation, tags
-and pushes `vX.Y.Z`, builds the local `.#release-artifact`, copies it
-into `dist/downloads/`, and builds `dist/pages/hister-pages.tar.gz` for
-SourceHut Pages.
-
-Optional flags:
-
-```bash
-nix run .#release -- --version X.Y.Z --publish-pages
+# Include the explicit Linux job when wanted:
 nix run .#release -- --version X.Y.Z --submit-linux-build
 ```
 
-- `--publish-pages` runs `hut pages publish` for `averagechris.srht.site`
-  under `/hister`.
-- `--submit-linux-build` submits `builds/release-linux-x86_64.yml`; the
-  build creates the Linux artifact, merges it with existing hosted
-  downloads, and republishes SourceHut Pages using build-scoped
-  `pages.sr.ht/PAGES:RW` OAuth.
+These are the only routine controls: version, check, and optional Linux build.
+There are deliberately no revision or skip controls.
 
-The Linux build manifest lives in `builds/` (not `.builds/`), so
-SourceHut does **not** auto-submit it on push. Releases publish pages
-explicitly via `--publish-pages` and/or `--submit-linux-build`.
+## Guarantees
 
-Use the manual steps below for more control or partial-release recovery.
+The check requires a managed-workspace-safe jj Git repository, an empty `@`
+whose parent equals local and remote `main`, a configured origin, SourceHut
+authentication, a valid non-downgrade version, and no conflicting local or
+remote tag. It does not edit files, create commits/tags, or publish anything.
 
-## 1. Find the last release tag
+The normal command:
 
-```bash
-jj tag list --no-pager --color=never
-```
+1. stamps package/lock/changelog/Linux metadata with `prepare-release`;
+2. validates that prepared tree with `ci-fmt`, `ci-vet`, `ci-test`, and
+   `nix flake check`;
+3. builds exactly one local release tarball and verifies its checksum;
+4. creates an annotated `vX.Y.Z` tag and atomically pushes it with leased
+   `main` via the backing repository returned by `jj git root`;
+5. imports the refs, sets `main`, and creates a fresh empty child;
+6. uploads only missing exact artifact names and idempotently requests the
+   downloads refresh and optional Linux job using stable build tags.
 
-Use the latest fork `vX.Y.Z` tag as the baseline. (Upstream tags such as
-`rolling` and pre-fork `vX.Y.Z` tags are not fork release baselines —
-the first fork release is **v1.0.0**, cut from the fork point at
-upstream v0.16.0; see roadmap decision D6.)
+If publication succeeded and post-publication work failed, rerun the exact same
+version/options. Resume is accepted only when the annotated tag peels to remote
+and local `main`, the empty working-copy parent, and the current version.
+Anything else fails closed. Prepublication failures leave remote refs unchanged;
+inspect or abandon the prepared `@` before retrying.
 
-## 2. Review commits since that tag
-
-```bash
-jj log -r '<last-tag>::@-' --no-pager --color=never --no-graph
-```
-
-Fork commits follow Conventional Commits.
-
-## 3. Choose the next version from commit messages
-
-Use the highest bump implied by commits since the last tag:
-
-- **major** — any commit with `!` after type/scope, or a
-  `BREAKING CHANGE:` footer
-- **minor** — any `feat:` commit with no breaking change
-- **patch** — `fix:`, `perf:`, `refactor:`, `build:`, `docs:`, `test:`,
-  `chore:` when there is no higher bump
-
-If no releasable commits exist, stop and explain why rather than tagging.
-
-## 4. Create a version bump commit
-
-```bash
-jj new -m 'chore: bump version to X.Y.Z'
-nix run .#prepare-release -- --version X.Y.Z --revision @
-```
-
-Verify:
-
-```bash
-grep '"version"' webui/app/package.json
-grep '^## vX.Y.Z' CHANGELOG.md
-```
-
-## 5. Validate before tagging
-
-```bash
-nix flake check --no-write-lock-file
-nix run .#ci-vet
-nix run .#ci-test
-```
-
-All must pass before proceeding.
-
-## 6. Tag and push
-
-```bash
-nix run .#release-tag
-```
-
-Tags `@` by default; if sitting on a fresh empty child change, pass the
-release revision:
-
-```bash
-nix run .#release-tag -- --revision @-
-```
-
-## 7. Move main bookmark
-
-```bash
-jj bookmark set main --revision vX.Y.Z
-jj git push --remote origin --bookmark main
-```
-
-## 8. Build artifacts and pages
-
-```bash
-nix build .#release-artifact --out-link result-release-artifact
-mkdir -p dist/downloads
-cp -p result-release-artifact/* dist/downloads/
-```
-
-For Linux, submit a SourceHut build after the manifest has the release
-version:
-
-```bash
-hut builds submit builds/release-linux-x86_64.yml \
-  --note 'hister vX.Y.Z linux release' \
-  --tags 'hister/vX.Y.Z/release' \
-  --visibility unlisted
-```
-
-For a local/manual pages publish:
-
-```bash
-nix run .#build-pages -- --include-existing-downloads
-nix run .#publish-pages
-```
-
-Pages default to `https://averagechris.srht.site/hister/`. Keep
-`CHANGELOG.md`, the downloads page, and README links in sync.
-
-## 9. Suggested prompts
-
-- "Review commits since the last tag and tell me the next release version"
-- "Choose the next semver bump from Conventional Commit messages"
-- "Prepare this fork for release"
+The Linux manifest lives in `builds/`, never `.builds/`. It verifies that HEAD
+is exactly its annotated package-version tag and verifies checksums before its
+own idempotent uploads and refresh request.

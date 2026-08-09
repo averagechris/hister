@@ -78,6 +78,7 @@
           ciVetScript = ''
             ${repoRootScript}
             ${ensureEmbedPlaceholder}
+            [[ -n "''${SOURCE_DATE_EPOCH:-}" ]] || unset SOURCE_DATE_EPOCH
             go vet ./...
           '';
           staticChecksScript = ''
@@ -87,6 +88,7 @@
           ciTestScript = ''
             ${repoRootScript}
             ${ensureEmbedPlaceholder}
+            [[ -n "''${SOURCE_DATE_EPOCH:-}" ]] || unset SOURCE_DATE_EPOCH
             # The full suite is offline-friendly: ytdlp tests use fake yt-dlp
             # binaries and httptest servers, wikipedia tests use local
             # fixtures (and skip when absent), so no package exclusions or
@@ -139,6 +141,14 @@
                     f"hister-{tag}-x86_64-linux.tar.gz",
                     text,
                 )
+                text, source_count = re.subn(
+                    r"(https://git\.sr\.ht/~averagechris/hister)#v\d+\.\d+\.\d+",
+                    rf"\g<1>#{tag}",
+                    text,
+                    count=1,
+                )
+                if source_count != 1:
+                    raise SystemExit("could not pin Linux release source to the version tag")
                 manifest.write_text(text)
 
             def update_lockfile_version(repo_root: pathlib.Path, version: str) -> None:
@@ -303,9 +313,7 @@
           releaseTagScript = ''
             if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
               printf 'usage: %s [--revision REV]\n' "$0"
-              printf 'Create and push a release tag from webui/app/package.json version.\n\n'
-              printf 'In jj repos, uses jj tag set + git push.\n'
-              printf 'In plain git repos, uses git tag + git push.\n'
+              printf 'Create and push an annotated recovery tag for a prepared jj revision.\n'
               exit 0
             fi
 
@@ -317,16 +325,24 @@
               esac
             done
 
-            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
+            repo_root="$(jj root 2>/dev/null)" || { printf '%s\n' 'release-tag requires a jj repository' >&2; exit 1; }
+            cd "$repo_root"
+            git_dir="$(jj git root 2>/dev/null)" || { printf '%s\n' 'release-tag requires a jj Git-backed repository' >&2; exit 1; }
+            commit="$(jj log -r "$revision" --no-graph --color=never -T commit_id)"
+            [[ "$(jj log -r "$revision" --no-graph --color=never -T 'if(empty, "1", "0")')" == 0 ]] || {
+              printf 'refusing to tag empty jj revision: %s\n' "$revision" >&2; exit 1;
+            }
+            [[ -n "$(jj log -r "$revision" --no-graph --color=never -T description)" ]] || {
+              printf 'refusing to tag undescribed jj revision: %s\n' "$revision" >&2; exit 1;
+            }
 
-            version="$(${pkgs.python3}/bin/python3 -c '
-            import json, pathlib, sys
-            path = pathlib.Path(sys.argv[1])
-            version = json.loads(path.read_text()).get("version")
+            version="$(git --git-dir="$git_dir" show "$commit:webui/app/package.json" | ${pkgs.python3}/bin/python3 -c '
+            import json, sys
+            version = json.load(sys.stdin).get("version")
             if not isinstance(version, str) or not version:
-                raise SystemExit("webui/app/package.json is missing version")
+                raise SystemExit("revision package.json is missing version")
             print(version)
-            ' "$repo_root/webui/app/package.json")"
+            ')"
 
             if [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               tag="v''${version#v}"
@@ -335,42 +351,32 @@
               exit 1
             fi
 
-            if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
-              printf 'local tag already exists: %s\n' "$tag" >&2
-              exit 1
-            fi
-
-            if [[ -n "$(git ls-remote --tags origin "refs/tags/$tag" 2>/dev/null)" ]]; then
-              printf 'remote tag already exists on origin: %s\n' "$tag" >&2
-              exit 1
-            fi
-
-            if [[ -d .jj ]]; then
-              if [[ "$(jj log -r "$revision" --no-graph --color=never -T 'empty()' 2>/dev/null)" == "true" ]]; then
-                printf 'refusing to tag empty jj revision: %s\n' "$revision" >&2
-                printf 'pass the non-empty release revision explicitly (for example --revision @-)\n' >&2
-                exit 1
+            remote_tags="$(git --git-dir="$git_dir" ls-remote --tags origin)"
+            remote_object="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$tag" '$2 == ref { print $1; exit }')"
+            remote_commit="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$tag^{}" '$2 == ref { print $1; exit }')"
+            if [[ -n "$remote_object" ]]; then
+              if [[ -n "$remote_commit" && "$remote_commit" == "$commit" ]]; then
+                printf 'annotated tag %s already exists at %s; nothing to do\n' "$tag" "$commit"
+                exit 0
               fi
-              jj tag set "$tag" --revision "$revision" --no-pager --color=never
-              printf 'created tag %s via jj\n' "$tag"
-            else
-              if ! git diff --quiet || ! git diff --cached --quiet; then
-                printf 'working tree must be clean before tagging\n' >&2
-                exit 1
-              fi
-              git tag -a "$tag" HEAD -m "Release $tag"
-              printf 'created annotated tag %s\n' "$tag"
-            fi
-
-            if ! git push origin "refs/tags/$tag"; then
-              printf 'failed to push %s. run manually:\n  git push origin "refs/tags/%s"\n' "$tag" "$tag" >&2
+              printf 'remote tag %s does not exactly annotate %s\n' "$tag" "$commit" >&2
               exit 1
             fi
-
-            printf 'pushed %s to origin\n' "$tag"
+            git --git-dir="$git_dir" show-ref --verify --quiet "refs/tags/$tag" && {
+              printf 'local tag exists without a matching remote tag: %s\n' "$tag" >&2; exit 1;
+            }
+            git --git-dir="$git_dir" -c tag.gpgSign=false tag -a "$tag" -m "hister $tag" "$commit"
+            if ! git --git-dir="$git_dir" push origin "refs/tags/$tag:refs/tags/$tag"; then
+              git --git-dir="$git_dir" tag -d "$tag" >/dev/null 2>&1 || true
+              jj git import >/dev/null 2>&1 || true
+              printf 'failed to push annotated tag %s\n' "$tag" >&2
+              exit 1
+            fi
+            jj git import
+            printf 'pushed annotated tag %s to origin\n' "$tag"
           '';
           buildPagesScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
+            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
             cd "$repo_root"
 
             domain="averagechris.srht.site"
@@ -756,7 +762,7 @@
             PY
           '';
           publishPagesScript = ''
-            repo_root="$(git rev-parse --show-toplevel)"
+            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
             cd "$repo_root"
 
             domain="averagechris.srht.site"
@@ -782,134 +788,7 @@
 
             exec hut pages publish "$pages_tarball" --domain "$domain" --subdirectory "$subdirectory"
           '';
-          releaseScript = ''
-            repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
-            cd "$repo_root"
-
-            version=""
-            revision="@"
-            validate=1
-            tag_release=1
-            build_artifact=1
-            build_pages=1
-            publish_pages=0
-            submit_linux_build=0
-            domain="averagechris.srht.site"
-            subdirectory="/hister"
-            linux_manifest="builds/release-linux-x86_64.yml"
-
-            usage() {
-              cat <<'EOF'
-            usage: release [options]
-
-            Prepare changelog/version metadata, validate, tag, build local release artifacts,
-            build SourceHut Pages content, and optionally publish/submit Linux builds.
-
-            Options:
-              --version X.Y.Z            update webui/app/package.json before preparing the release
-              --revision REV             jj revision to tag/summarize (default: @)
-              --skip-validate            skip nix flake check, ci-test, and ci-vet
-              --skip-tag                 do not create/push the release tag
-              --skip-artifact            do not build/copy the local release artifact
-              --skip-pages               do not build the static downloads page
-              --publish-pages            publish dist/pages/hister-pages.tar.gz with hut (legacy)
-              --submit-linux-build       submit builds/release-linux-x86_64.yml with srht
-              --domain DOMAIN            SourceHut Pages domain (default: averagechris.srht.site)
-              --subdirectory PATH        SourceHut Pages subdirectory (default: /hister)
-              -h, --help                 show this help
-            EOF
-            }
-
-            while [[ $# -gt 0 ]]; do
-              case "$1" in
-                --version) version="$2"; shift 2 ;;
-                --revision) revision="$2"; shift 2 ;;
-                --skip-validate) validate=0; shift ;;
-                --skip-tag) tag_release=0; shift ;;
-                --skip-artifact) build_artifact=0; shift ;;
-                --skip-pages) build_pages=0; shift ;;
-                --publish-pages) publish_pages=1; shift ;;
-                --submit-linux-build) submit_linux_build=1; shift ;;
-                --domain) domain="$2"; shift 2 ;;
-                --subdirectory) subdirectory="$2"; shift 2 ;;
-                -h|--help) usage; exit 0 ;;
-                *) printf 'unknown argument: %s\n' "$1" >&2; usage >&2; exit 1 ;;
-              esac
-            done
-
-            prepare_args=("--revision" "$revision" "--repo-root" "$repo_root")
-            if [[ -n "$version" ]]; then
-              prepare_args+=("--version" "$version")
-            fi
-            prepare-release "''${prepare_args[@]}"
-
-            # Fast sanity compile (the cargo check equivalent). The static
-            # embed needs at least one file in server/static/app.
-            ${ensureEmbedPlaceholder}
-            go build ./...
-
-            version="$(python3 - <<'PY'
-            import json, pathlib
-            print(json.loads(pathlib.Path('webui/app/package.json').read_text())['version'])
-            PY
-            )"
-            tag="v$version"
-
-            # Ensure the release commit is described before tagging: prepare-release
-            # stages version/changelog changes into the working copy, which may be a
-            # fresh commit with no description — release-tag must never tag an
-            # undescribed commit.
-            if [[ -d .jj ]]; then
-              if [[ -z "$(jj log -r "$revision" --no-graph --color=never -T 'description' 2>/dev/null)" ]]; then
-                jj describe "$revision" -m "chore: release $tag" --no-pager --color=never
-              fi
-            elif ! git diff --quiet || ! git diff --cached --quiet; then
-              git add -A
-              git commit -m "chore: release $tag"
-            fi
-
-            if [[ $validate -eq 1 ]]; then
-              nix flake check --no-write-lock-file
-              nix run .#ci-test
-              nix run .#ci-vet
-            fi
-
-            if [[ $tag_release -eq 1 ]]; then
-              release_revision="$(jj log -r "$revision" --no-graph --color=never -T 'commit_id.short()')"
-              nix run .#release-tag -- --revision "$release_revision"
-              if [[ -d .jj ]]; then
-                jj bookmark set main --revision "$release_revision" --no-pager --color=never
-                jj git push --remote origin --bookmark main --no-pager --color=never
-              fi
-            fi
-
-            if [[ $build_artifact -eq 1 ]]; then
-              nix build .#release-artifact --out-link result-release-artifact
-              mkdir -p dist/downloads
-              cp -p result-release-artifact/* dist/downloads/
-              printf 'copied release artifact(s) to dist/downloads\n'
-            fi
-
-            if [[ $build_pages -eq 1 ]]; then
-              nix run .#build-pages -- --domain "$domain" --subdirectory "$subdirectory" --include-existing-downloads
-            fi
-
-            if [[ $publish_pages -eq 1 ]]; then
-              nix run .#publish-pages -- --domain "$domain" --subdirectory "$subdirectory"
-            else
-              printf 'pages not published; run: nix run .#publish-pages -- --domain %q --subdirectory %q\n' "$domain" "$subdirectory"
-            fi
-
-            if [[ $submit_linux_build -eq 1 ]]; then
-              srht() { nix run --inputs-from . fleet#srht -- "$@"; }
-              # The release manifest has oauth grants, and sr.ht only provisions
-              # its bearer token when the submitting client enables secrets.
-              srht builds submit "$linux_manifest" --secrets --note "hister $tag linux release" --tag "hister/$tag/release"
-            else
-              printf 'linux build not submitted; run: srht builds submit %s --secrets --note %q --tag %q\n' \
-                "$linux_manifest" "hister $tag linux release" "hister/$tag/release"
-            fi
-          '';
+          releaseScript = builtins.readFile ./scripts/release.sh;
           mkRepoScript =
             {
               name,
@@ -988,6 +867,7 @@
             name = "release-tag";
             text = releaseTagScript;
             runtimeInputs = with pkgs; [
+              gawk
               git
               jujutsu
               python3
@@ -1017,7 +897,6 @@
             runtimeInputs = with pkgs; [
               coreutils
               git
-              go
               jujutsu
               nix
               prepare-release
@@ -1131,6 +1010,52 @@
 
           checks = {
             build = histerPackage;
+            release-behavior =
+              pkgs.runCommand "hister-release-behavior"
+                {
+                  nativeBuildInputs = with pkgs; [
+                    coreutils
+                    git
+                    jujutsu
+                    python3
+                  ];
+                }
+                ''
+                  RELEASE_SCRIPT=${./scripts/release.sh} PYTHONDONTWRITEBYTECODE=1 \
+                    python3 ${./tests/test_release.py}
+                  touch "$out"
+                '';
+            release-contract =
+              pkgs.runCommand "hister-release-contract"
+                {
+                  nativeBuildInputs = with pkgs; [ gnugrep ];
+                }
+                ''
+                  help="$(${release}/bin/release --help)"
+                  printf '%s\n' "$help" | grep -Fqx \
+                    'usage: release --version X.Y.Z [--check] [--submit-linux-build]'
+                  printf '%s\n' "$help" | grep -Fq -- \
+                    '--check               verify release readiness without editing files or publishing refs'
+                  printf '%s\n' "$help" | grep -Fq -- \
+                    '--submit-linux-build  submit the Linux release build after publication'
+
+                  grep -Fqx '    nix run .#release -- --version X.Y.Z --check' ${./AGENTS.md}
+                  grep -Fqx '    nix run .#release -- --version X.Y.Z [--submit-linux-build]' ${./AGENTS.md}
+                  grep -Fqx 'nix run .#release -- --version X.Y.Z --check' ${./README.md}
+                  grep -Fqx 'nix run .#release -- --version X.Y.Z [--submit-linux-build]' ${./README.md}
+                  grep -Fqx '  - https://git.sr.ht/~averagechris/hister#v${histerVersion}' ${./builds/release-linux-x86_64.yml}
+                  grep -Fq 'builds.sr.ht/PROFILE:RO' ${./builds/release-linux-x86_64.yml}
+
+                  if printf '%s\n' "$help" | grep -Eq -- '--(revision|skip-(validate|tag|artifact|pages)|publish-pages)'; then
+                    printf '%s\n' 'release help exposes an obsolete revision/skip/page flag' >&2
+                    exit 1
+                  fi
+                  if grep -Eq -- 'nix run \.#release -- .*--(revision|skip-(validate|tag|artifact|pages)|publish-pages)' ${./AGENTS.md} ${./README.md} ${./.opencode/skills/release-process/SKILL.md}; then
+                    printf '%s\n' 'release docs expose an obsolete revision/skip/page flag' >&2
+                    exit 1
+                  fi
+                  touch "$out"
+                '';
           };
 
           devShells.default = pkgs.mkShell {

@@ -9,6 +9,21 @@ Hister is a general purpose web search engine providing automatic full-text inde
 > Binary downloads: <https://averagechris.srht.site/hister/>. Fork policy,
 > roadmap, and audit live in `AGENTS.md` and `docs/`.
 
+## Releases
+
+Maintainers use the custom Tiny-safe release orchestrator. Check readiness
+without changing the checkout or remote state, then run the same version:
+
+```console
+nix run .#release -- --version X.Y.Z --check
+nix run .#release -- --version X.Y.Z [--submit-linux-build]
+```
+
+The command validates the prepared Go/Nix tree, verifies the local artifact and
+checksum, atomically publishes leased `main` with an annotated version tag, and
+idempotently uploads artifacts and requests the downloads refresh. An exact
+post-publication rerun resumes safely; divergent release state is rejected.
+
 ## Features
 
 - **Privacy-focused**: Keep your browsing history indexed locally - don't use remote search engines if it isn't necessary
