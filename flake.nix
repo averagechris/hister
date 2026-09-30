@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+    fleet.url = "github:averagechris/fleet/aa056e3eca4324b49a1eadc63da35884f966cb21";
   };
 
   outputs =
@@ -285,6 +286,7 @@
             def main() -> int:
                 parser = argparse.ArgumentParser(description="Prepare webui/app/package.json and CHANGELOG.md for a deterministic release.")
                 parser.add_argument("--version", help="release version to write; defaults to webui/app/package.json version")
+                parser.add_argument("--allow-downgrade", action="store_true", help=argparse.SUPPRESS)
                 parser.add_argument("--revision", default="@", help="jj revision to summarize for the changelog")
                 parser.add_argument("--date", default=dt.date.today().isoformat(), help="release date for CHANGELOG.md")
                 parser.add_argument("--repo-root", default=".", help="repository root")
@@ -308,71 +310,6 @@
 
             sys.exit(main())
             PY
-          '';
-          releaseTagScript = ''
-            if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
-              printf 'usage: %s [--revision REV]\n' "$0"
-              printf 'Create and push an annotated recovery tag for a prepared jj revision.\n'
-              exit 0
-            fi
-
-            revision="@"
-            while [[ $# -gt 0 ]]; do
-              case "$1" in
-                --revision) revision="$2"; shift 2 ;;
-                *) printf 'unknown argument: %s\n' "$1" >&2; exit 1 ;;
-              esac
-            done
-
-            repo_root="$(jj root 2>/dev/null)" || { printf '%s\n' 'release-tag requires a jj repository' >&2; exit 1; }
-            cd "$repo_root"
-            git_dir="$(jj git root 2>/dev/null)" || { printf '%s\n' 'release-tag requires a jj Git-backed repository' >&2; exit 1; }
-            commit="$(jj log -r "$revision" --no-graph --color=never -T commit_id)"
-            [[ "$(jj log -r "$revision" --no-graph --color=never -T 'if(empty, "1", "0")')" == 0 ]] || {
-              printf 'refusing to tag empty jj revision: %s\n' "$revision" >&2; exit 1;
-            }
-            [[ -n "$(jj log -r "$revision" --no-graph --color=never -T description)" ]] || {
-              printf 'refusing to tag undescribed jj revision: %s\n' "$revision" >&2; exit 1;
-            }
-
-            version="$(git --git-dir="$git_dir" show "$commit:webui/app/package.json" | ${pkgs.python3}/bin/python3 -c '
-            import json, sys
-            version = json.load(sys.stdin).get("version")
-            if not isinstance(version, str) or not version:
-                raise SystemExit("revision package.json is missing version")
-            print(version)
-            ')"
-
-            if [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              tag="v''${version#v}"
-            else
-              printf 'webui/app/package.json version must be semver in the form X.Y.Z\n' >&2
-              exit 1
-            fi
-
-            remote_tags="$(git --git-dir="$git_dir" ls-remote --tags origin)"
-            remote_object="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$tag" '$2 == ref { print $1; exit }')"
-            remote_commit="$(printf '%s\n' "$remote_tags" | awk -v ref="refs/tags/$tag^{}" '$2 == ref { print $1; exit }')"
-            if [[ -n "$remote_object" ]]; then
-              if [[ -n "$remote_commit" && "$remote_commit" == "$commit" ]]; then
-                printf 'annotated tag %s already exists at %s; nothing to do\n' "$tag" "$commit"
-                exit 0
-              fi
-              printf 'remote tag %s does not exactly annotate %s\n' "$tag" "$commit" >&2
-              exit 1
-            fi
-            git --git-dir="$git_dir" show-ref --verify --quiet "refs/tags/$tag" && {
-              printf 'local tag exists without a matching remote tag: %s\n' "$tag" >&2; exit 1;
-            }
-            git --git-dir="$git_dir" -c tag.gpgSign=false tag -a "$tag" -m "hister $tag" "$commit"
-            if ! git --git-dir="$git_dir" push origin "refs/tags/$tag:refs/tags/$tag"; then
-              git --git-dir="$git_dir" tag -d "$tag" >/dev/null 2>&1 || true
-              jj git import >/dev/null 2>&1 || true
-              printf 'failed to push annotated tag %s\n' "$tag" >&2
-              exit 1
-            fi
-            jj git import
-            printf 'pushed annotated tag %s to origin\n' "$tag"
           '';
           buildPagesScript = ''
             repo_root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
@@ -787,7 +724,6 @@
 
             exec hut pages publish "$pages_tarball" --domain "$domain" --subdirectory "$subdirectory"
           '';
-          releaseScript = builtins.readFile ./scripts/release.sh;
           mkRepoScript =
             {
               name,
@@ -862,16 +798,6 @@
               python3
             ];
           };
-          release-tag = mkRepoScript {
-            name = "release-tag";
-            text = releaseTagScript;
-            runtimeInputs = with pkgs; [
-              gawk
-              git
-              jujutsu
-              python3
-            ];
-          };
           build-pages = mkRepoScript {
             name = "build-pages";
             text = buildPagesScript;
@@ -890,16 +816,25 @@
               hut
             ];
           };
-          release = mkRepoScript {
-            name = "release";
-            text = releaseScript;
-            runtimeInputs = with pkgs; [
-              coreutils
-              git
-              jujutsu
-              nix
-              prepare-release
-              python3
+          ci-release = mkRepoScript {
+            name = "ci-release";
+            text = ''
+              ${repoRootScript}
+              nix flake check
+            '';
+            runtimeInputs = with pkgs; [ nix ];
+          };
+          release = inputs.fleet.lib.fleet.core.mkGithubRelease {
+            inherit pkgs;
+            pname = "hister";
+            versionCommand = ''
+              python3 -c 'import json; print(json.load(open("webui/app/package.json"))["version"])'
+            '';
+            ciApps = [
+              "ci-fmt"
+              "ci-test"
+              "ci-vet"
+              "ci-release"
             ];
           };
           repo-scripts = pkgs.symlinkJoin {
@@ -907,13 +842,13 @@
             paths = [
               build-pages
               ci-fmt
+              ci-release
               ci-test
               ci-vet
               fetch-upstream
               prepare-release
               publish-pages
               release
-              release-tag
               static-checks
             ];
           };
@@ -977,13 +912,13 @@
             inherit
               build-pages
               ci-fmt
+              ci-release
               ci-test
               ci-vet
               fetch-upstream
               prepare-release
               publish-pages
               release
-              release-tag
               static-checks
               ;
             scripts = repo-scripts;
@@ -997,33 +932,18 @@
             hister.program = histerPackage;
             build-pages.program = build-pages;
             ci-fmt.program = ci-fmt;
+            ci-release.program = ci-release;
             ci-test.program = ci-test;
             ci-vet.program = ci-vet;
             fetch-upstream.program = fetch-upstream;
             prepare-release.program = prepare-release;
             publish-pages.program = publish-pages;
             release.program = release;
-            release-tag.program = release-tag;
             static-checks.program = static-checks;
           };
 
           checks = {
             build = histerPackage;
-            release-behavior =
-              pkgs.runCommand "hister-release-behavior"
-                {
-                  nativeBuildInputs = with pkgs; [
-                    coreutils
-                    git
-                    jujutsu
-                    python3
-                  ];
-                }
-                ''
-                  RELEASE_SCRIPT=${./scripts/release.sh} PYTHONDONTWRITEBYTECODE=1 \
-                    python3 ${./tests/test_release.py}
-                  touch "$out"
-                '';
             release-contract =
               pkgs.runCommand "hister-release-contract"
                 {
@@ -1032,24 +952,20 @@
                 ''
                   help="$(${release}/bin/release --help)"
                   printf '%s\n' "$help" | grep -Fqx \
-                    'usage: release --version X.Y.Z [--check] [--submit-linux-build]'
+                    'usage: release --version X.Y.Z [--check] [--allow-downgrade]'
                   printf '%s\n' "$help" | grep -Fq -- \
-                    '--check               verify release readiness without editing files or publishing refs'
-                  printf '%s\n' "$help" | grep -Fq -- \
-                    '--submit-linux-build  submit the Linux release build after publication'
+                    '--check  nonmutating ref/version preflight only; does not run validation or build artifacts'
 
                   grep -Fqx '    nix run .#release -- --version X.Y.Z --check' ${./AGENTS.md}
-                  grep -Fqx '    nix run .#release -- --version X.Y.Z [--submit-linux-build]' ${./AGENTS.md}
+                  grep -Fqx '    nix run .#release -- --version X.Y.Z' ${./AGENTS.md}
                   grep -Fqx 'nix run .#release -- --version X.Y.Z --check' ${./README.md}
-                  grep -Fqx 'nix run .#release -- --version X.Y.Z [--submit-linux-build]' ${./README.md}
-                  grep -Fqx '  - https://git.sr.ht/~averagechris/hister#v${histerVersion}' ${./builds/release-linux-x86_64.yml}
-                  grep -Fq 'builds.sr.ht/PROFILE:RO' ${./builds/release-linux-x86_64.yml}
+                  grep -Fqx 'nix run .#release -- --version X.Y.Z' ${./README.md}
 
-                  if printf '%s\n' "$help" | grep -Eq -- '--(revision|skip-(validate|tag|artifact|pages)|publish-pages)'; then
+                  if printf '%s\n' "$help" | grep -Eq -- '--(revision|skip-|submit-linux|publish-pages)'; then
                     printf '%s\n' 'release help exposes an obsolete revision/skip/page flag' >&2
                     exit 1
                   fi
-                  if grep -Eq -- 'nix run \.#release -- .*--(revision|skip-(validate|tag|artifact|pages)|publish-pages)' ${./AGENTS.md} ${./README.md} ${./.opencode/skills/release-process/SKILL.md}; then
+                  if grep -Eq -- 'nix run \.#release -- .*--(revision|skip-|submit-linux|publish-pages)' ${./AGENTS.md} ${./README.md} ${./.opencode/skills/release-process/SKILL.md}; then
                     printf '%s\n' 'release docs expose an obsolete revision/skip/page flag' >&2
                     exit 1
                   fi

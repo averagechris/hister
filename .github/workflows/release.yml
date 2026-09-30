@@ -1,56 +1,62 @@
-name: Release binaries
+name: Build release artifacts (manual publication required)
 
 on:
   push:
     tags:
-      - '*'
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated tag selected from main (vX.Y.Z)
+        required: true
+        type: string
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  build:
-    if: github.repository == 'asciimoo/hister'
-    name: GoReleaser build
-    runs-on: ubuntu-latest
-    container:
-      image: goreleaser/goreleaser-cross:v1.25.5
+  validate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: 'stable'
-
-      - name: Set up Node
-        uses: actions/setup-node@v6.4.0
-        with:
-          node-version: latest
-
-        # Mark the checkout as 'safe' despite being owned by `root`
-      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - run: git config --global --add safe.directory "$(pwd)"
-
-      - name: Generate front-end
-        run: go generate ./...
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@master
-        with:
-          version: latest
-          args: release --clean
-          workdir: .
+          persist-credentials: false
+      - id: tag
+        name: Validate trusted annotated tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+          REQUESTED_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "averagechris/hister" ]] || { echo 'untrusted repository' >&2; exit 1; }
+          [[ "$REQUESTED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'tag must be vX.Y.Z' >&2; exit 1; }
+          remote=$(git ls-remote --tags origin "refs/tags/$REQUESTED_TAG" "refs/tags/$REQUESTED_TAG^{}")
+          object=$(awk -v ref="refs/tags/$REQUESTED_TAG" '$2 == ref {print $1}' <<<"$remote")
+          commit=$(awk -v ref="refs/tags/$REQUESTED_TAG^{}" '$2 == ref {print $1}' <<<"$remote")
+          [[ -n "$object" && -n "$commit" ]] || { echo 'tag is absent or is not annotated on origin' >&2; exit 1; }
+          git fetch --force --no-tags origin "refs/tags/$REQUESTED_TAG:refs/tags/$REQUESTED_TAG"
+          git fetch --force --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          [[ "$(git cat-file -t "$REQUESTED_TAG")" == tag ]] || { echo 'release tag must be annotated' >&2; exit 1; }
+          [[ "$(git rev-parse "$REQUESTED_TAG^{tag}")" == "$object" ]] || exit 1
+          [[ "$(git rev-parse "$REQUESTED_TAG^{commit}")" == "$commit" ]] || exit 1
+          git merge-base --is-ancestor "$commit" origin/main || { echo 'tag commit is not an ancestor of canonical origin/main' >&2; exit 1; }
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            [[ "$GITHUB_REF" == "refs/tags/$REQUESTED_TAG" ]] || exit 1
+            [[ "$GITHUB_SHA" == "$commit" ]] || { echo 'tag push SHA does not resolve to tag commit' >&2; exit 1; }
+          else
+            [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/main ]] || { echo 'manual recovery must run from main' >&2; exit 1; }
+            git merge-base --is-ancestor "$commit" "$GITHUB_SHA" || { echo 'tag commit is not an ancestor of selected main' >&2; exit 1; }
+          fi
+          echo "tag=$REQUESTED_TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Upload assets
-        uses: actions/upload-artifact@v7
-        with:
-          name: hister
-          path: dist/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+  artifacts:
+    needs: validate
+    permissions:
+      contents: read
+    uses: averagechris/fleet/.github/workflows/release.yml@aa056e3eca4324b49a1eadc63da35884f966cb21
+    with:
+      tag: ${{ needs.validate.outputs.tag }}
+      platforms: '[{"name":"aarch64-darwin","runner":"macos-14"},{"name":"x86_64-linux","runner":"ubuntu-24.04"}]'

@@ -5,24 +5,25 @@
 Hister is a general purpose web search engine providing automatic full-text indexing for visited websites.
 
 > This is a personal fork of [asciimoo/hister](https://github.com/asciimoo/hister)
-> (AGPLv3+), canonical at [git.sr.ht/~averagechris/hister](https://git.sr.ht/~averagechris/hister).
-> Binary downloads: <https://averagechris.srht.site/hister/>. Fork policy,
+> (AGPLv3+), maintained at [github.com/averagechris/hister](https://github.com/averagechris/hister).
+> Historical SourceHut releases remain available. Fork policy,
 > roadmap, and audit live in `AGENTS.md` and `docs/`.
 
 ## Releases
 
-Maintainers use the custom Tiny-safe release orchestrator. Check readiness
+Future releases use the SHA-pinned Fleet GitHub release helper. Check readiness
 without changing the checkout or remote state, then run the same version:
 
 ```console
 nix run .#release -- --version X.Y.Z --check
-nix run .#release -- --version X.Y.Z [--submit-linux-build]
+nix run .#release -- --version X.Y.Z
 ```
 
-The command validates the prepared Go/Nix tree, verifies the local artifact and
-checksum, atomically publishes leased `main` with an annotated version tag, and
-idempotently uploads artifacts and requests the downloads refresh. An exact
-post-publication rerun resumes safely; divergent release state is rejected.
+The real command preserves the project-owned version and changelog stamping,
+validates the Go/Nix tree, and atomically publishes leased `main` with an
+annotated version tag. GitHub Actions builds the two supported artifacts with
+read-only permissions; maintainers verify and publish the four files manually.
+See [`docs/release.md`](docs/release.md).
 
 ## Features
 
