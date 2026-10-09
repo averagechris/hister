@@ -28,10 +28,12 @@ GitHub-only; historical SourceHut tags and artifacts remain preserved.
 
 ## Upstream review memory
 
-**Upstream reviewed through `5c1f8a73` (master@upstream, post-v0.16.0,
-2026-07-03) — the fork point.** The state of the tree at that commit was
-audited in `docs/fork-audit.md`. Future upstream review should start after
-that commit; update this watermark when a review completes.
+**Upstream reviewed through `fca22ad4b57feba248f71dfdef3e9905f11e1726`
+(`master@upstream`, 2026-10-09).** The fork-point tree at `5c1f8a73` was
+audited in `docs/fork-audit.md`; the complete commit/path inventory and this
+review's selective ports are recorded in
+`docs/upstream-review-2026-10-09-inventory.md`. Future upstream review should
+start after this commit; update this watermark when a review completes.
 
 Standing exclusions (do not port from upstream without explicit discussion):
 

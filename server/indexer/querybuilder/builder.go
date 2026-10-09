@@ -45,7 +45,9 @@ func Build(s string) query.Query {
 			qs = append(qs, q)
 		}
 	}
-	if len(qt) > 1 && !anyFieldSpecific(qt) {
+	// A query made only of negated terms has nothing to wrap: the phrase
+	// would become a required clause and match nothing.
+	if len(qt) > 1 && len(qs) > 0 && !anyFieldSpecific(qt) {
 		// create a full phrase query from the query string to get exact matches for the full query
 		pq := createCombinedMatchQuery(s, 2)
 		qs = []query.Query{
@@ -56,7 +58,9 @@ func Build(s string) query.Query {
 		}
 	}
 	q := query.NewBooleanQuery(qs, nil, nqs)
-	if len(qt) == 1 && !isFieldSpecific(qt[0]) {
+	// Only positive terms get the URL boost. With no Must clause, it would be
+	// the only required clause and change a negated query's results.
+	if len(qt) == 1 && len(qs) == 1 && !isFieldSpecific(qt[0]) {
 		// prioritize base url matches if there is only one non field specific search term for easier retrieval of websites.
 		uq := bleve.NewRegexpQuery(fmt.Sprintf("https?://(www\\.)?%s[^/]*/", regexp.QuoteMeta(strings.ToLower(qt[0].Value))))
 		uq.SetField("url")

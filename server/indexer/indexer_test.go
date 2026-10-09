@@ -1,11 +1,59 @@
 package indexer
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/asciimoo/hister/server/document"
 	"github.com/asciimoo/hister/server/testutil"
 )
+
+func TestSearchOnlyNegatedTerms(t *testing.T) {
+	idxCfg := testutil.Config(t)
+	if err := Init(idxCfg); err != nil {
+		t.Fatalf("failed to init indexer: %v", err)
+	}
+	defer i.Close()
+
+	documents := []*document.Document{
+		{URL: "https://go.dev/doc", Title: "Golang docs", Text: "golang language"},
+		{URL: "https://rust-lang.org/", Title: "Rust", Text: "rust language"},
+		{URL: "https://python.org/", Title: "Python", Text: "python language"},
+	}
+	for _, d := range documents {
+		if err := Add(d); err != nil {
+			t.Fatalf("Add(%q): %v", d.URL, err)
+		}
+	}
+
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"-title:golang", []string{documents[1].URL, documents[2].URL}},
+		{"-golang", []string{documents[1].URL, documents[2].URL}},
+		{`-"golang language"`, []string{documents[1].URL, documents[2].URL}},
+		{"-golang -python", []string{documents[1].URL}},
+		{"language -golang", []string{documents[1].URL, documents[2].URL}},
+	} {
+		t.Run(tc.query, func(t *testing.T) {
+			res, err := Search(idxCfg, &Query{Text: tc.query})
+			if err != nil {
+				t.Fatalf("Search(%q): %v", tc.query, err)
+			}
+			got := make([]string, 0, len(res.Documents))
+			for _, d := range res.Documents {
+				got = append(got, d.URL)
+			}
+			slices.Sort(got)
+			want := slices.Clone(tc.want)
+			slices.Sort(want)
+			if !slices.Equal(got, want) {
+				t.Errorf("Search(%q) URLs = %q, want %q", tc.query, got, want)
+			}
+		})
+	}
+}
 
 func TestSearchSortsByMostVisited(t *testing.T) {
 	idxCfg := testutil.Config(t)

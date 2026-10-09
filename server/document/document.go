@@ -121,7 +121,7 @@ func (d *Document) Process(ld LanguageDetector, extractFn func(*Document) error)
 		ld = NewNullLanguageDetector()
 	}
 	if !d.SkipSensitiveCheck && sensitiveContentRe != nil && sensitiveContentRe.MatchString(d.HTML) {
-		log.Debug().Msg("Matching sensitive content: " + strings.Join(sensitiveContentRe.FindAllString(d.HTML, -1), ","))
+		log.Debug().Msg("Sensitive content detected")
 		return ErrSensitiveContent
 	}
 	if d.URL == "" {
