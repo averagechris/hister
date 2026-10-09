@@ -6,9 +6,10 @@ allowed-tools: Bash, Read, Grep
 
 # Upstream Merge Review Workflow
 
-This repository treats GitHub as `upstream` and SourceHut as `origin`.
-The fork's trunk is the `main` bookmark; upstream's trunk is
-`master@upstream`. Check the "Upstream review memory" watermark in
+This repository treats GitHub (`averagechris/hister`) as `origin` and
+`asciimoo/hister` as the read-only `upstream`. The fork's trunk is the `main`
+bookmark; upstream's trunk is `master@upstream`. Check the "Upstream review
+memory" watermark in
 AGENTS.md before starting — review only commits after it.
 
 ## 1. Refresh upstream refs
